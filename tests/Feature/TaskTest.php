@@ -60,6 +60,31 @@ class TaskTest extends TestCase
             ->assertJsonValidationErrors('title');
     }
 
+    /** Задача проходит весь путь по доске, включая тестирование. */
+    public function test_task_moves_through_all_statuses(): void
+    {
+        $task = Task::factory()->for($this->project)->create();
+
+        foreach (['in_progress', 'testing', 'done'] as $status) {
+            $this->actingAs($this->owner, 'sanctum')
+                ->putJson("/api/tasks/{$task->id}", ['status' => $status])
+                ->assertOk()
+                ->assertJsonPath('data.status', $status);
+        }
+    }
+
+    /** Фильтр по статусу «в тестировании». */
+    public function test_tasks_can_be_filtered_by_testing_status(): void
+    {
+        Task::factory()->for($this->project)->status(TaskStatus::Testing)->create();
+        Task::factory()->for($this->project)->status(TaskStatus::Todo)->count(2)->create();
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->getJson("/api/projects/{$this->project->id}/tasks?status=testing")
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
     /** Неизвестный статус не пройдёт. */
     public function test_unknown_status_is_rejected(): void
     {

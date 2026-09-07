@@ -22,7 +22,7 @@ class TaskController extends Controller
         tags: ['Задачи'],
         parameters: [
             new OA\Parameter(name: 'project', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'status', in: 'query', description: 'todo, in_progress, done', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'status', in: 'query', description: 'todo, in_progress, testing, done', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'priority', in: 'query', description: 'low, normal, high', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'assignee_id', in: 'query', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'due_before', in: 'query', description: 'Срок не позже даты, YYYY-MM-DD', schema: new OA\Schema(type: 'string')),

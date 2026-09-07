@@ -6,6 +6,7 @@ enum TaskStatus: string
 {
     case Todo = 'todo';
     case InProgress = 'in_progress';
+    case Testing = 'testing';
     case Done = 'done';
 
     /** Значения для правил валидации и документации. */
