@@ -148,9 +148,10 @@ class ProjectController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['user_id'],
+                description: 'Нужно передать либо user_id, либо email',
                 properties: [
                     new OA\Property(property: 'user_id', type: 'integer', example: 2),
+                    new OA\Property(property: 'email', type: 'string', example: 'petr@example.com'),
                     new OA\Property(property: 'role', type: 'string', example: 'member'),
                 ]
             )
@@ -166,7 +167,7 @@ class ProjectController extends Controller
         $this->authorize('addMember', $project);
 
         $project->members()->attach(
-            $request->user_id,
+            $request->memberId(),
             ['role' => $request->input('role', 'member')]
         );
 
