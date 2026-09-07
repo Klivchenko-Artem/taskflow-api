@@ -8,6 +8,8 @@ use App\Http\Requests\UpdateTaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
+use App\Notifications\TaskAssigned;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -81,6 +83,8 @@ class TaskController extends Controller
 
         $task = $project->tasks()->create($request->validated());
 
+        $this->notifyAssignee($task, $request->user());
+
         return (new TaskResource($task->load('assignee')))
             ->response()
             ->setStatusCode(201);
@@ -123,7 +127,15 @@ class TaskController extends Controller
     {
         $this->authorize('update', $task);
 
+        $previousAssignee = $task->assignee_id;
+
         $task->update($request->validated());
+
+        // Письмо шлём только когда исполнитель действительно сменился,
+        // а не на каждое перетаскивание задачи по доске
+        if ($task->assignee_id !== $previousAssignee) {
+            $this->notifyAssignee($task, $request->user());
+        }
 
         return new TaskResource($task->load('assignee'));
     }
@@ -148,5 +160,19 @@ class TaskController extends Controller
         $task->delete();
 
         return response()->json(status: 204);
+    }
+
+    /**
+     * Уведомить исполнителя о назначении. Уходит в очередь, поэтому запрос
+     * не ждёт почтовый сервер. Самому себе задачу назначать можно — письмо
+     * в этом случае не отправляем.
+     */
+    private function notifyAssignee(Task $task, User $actor): void
+    {
+        $assignee = $task->assignee;
+
+        if ($assignee && $assignee->isNot($actor)) {
+            $assignee->notify(new TaskAssigned($task, $actor));
+        }
     }
 }

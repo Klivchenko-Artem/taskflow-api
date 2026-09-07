@@ -1,20 +1,53 @@
+# Локальный запуск целиком: API, воркер очереди, PostgreSQL, Redis и почта.
+# APP_KEY здесь фиксированный — это демо-стенд, в реальном окружении ключ
+# передаётся через переменные окружения и в репозиторий не попадает.
+x-app: &app-env
+  # Имя приложения задаём явно: из него Laravel строит префикс ключей Redis,
+  # и без него воркер искал бы задачи по другому ключу, чем кладёт API
+  APP_NAME: "Task Tracker API"
+  APP_ENV: local
+  APP_DEBUG: "true"
+  APP_KEY: base64:lMhJ0lETJ9p/0S/QTOqAbUdSQaLQUUp9GeU0rrco3fs=
+  APP_URL: http://localhost:8000
+  DB_CONNECTION: pgsql
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_DATABASE: tasks
+  DB_USERNAME: tasks
+  DB_PASSWORD: secret
+  QUEUE_CONNECTION: redis
+  REDIS_CLIENT: predis
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  MAIL_MAILER: smtp
+  MAIL_HOST: mailpit
+  MAIL_PORT: "1025"
+  MAIL_FROM_ADDRESS: no-reply@taskflow.local
+  MAIL_FROM_NAME: TaskFlow
+  L5_SWAGGER_CONST_HOST: http://localhost:8000
+
 services:
   app:
     build: .
     environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost:8000
-      DB_CONNECTION: pgsql
-      DB_HOST: db
-      DB_PORT: "5432"
-      DB_DATABASE: tasks
-      DB_USERNAME: tasks
-      DB_PASSWORD: secret
-      L5_SWAGGER_CONST_HOST: http://localhost:8000
+      <<: *app-env
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Разгребает очередь: письма отправляются здесь, а не в момент запроса
+  worker:
+    build: .
+    entrypoint: ["php"]
+    command: ["artisan", "queue:work", "--tries=3", "--max-time=3600", "--verbose"]
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
 
   nginx:
     image: nginx:alpine
@@ -38,6 +71,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  redis:
+    image: redis:7-alpine
+
+  # Ловит исходящие письма и показывает их в браузере
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
 
 volumes:
   pgdata:
