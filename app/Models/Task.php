@@ -16,6 +16,16 @@ class Task extends Model
 {
     use HasFactory;
 
+    /**
+     * Значения по умолчанию держим и в модели тоже: дефолт в миграции
+     * проставляется базой, но только что созданный объект о нём не знает
+     * и вернул бы в ответе null.
+     */
+    protected $attributes = [
+        'status' => 'todo',
+        'priority' => 'normal',
+    ];
+
     protected function casts(): array
     {
         return [

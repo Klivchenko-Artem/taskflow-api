@@ -41,6 +41,16 @@ class TaskTest extends TestCase
         $this->assertDatabaseHas('tasks', ['title' => 'Настроить бэкапы']);
     }
 
+    /** Без явных статуса и приоритета задача получает значения по умолчанию. */
+    public function test_new_task_gets_default_status_and_priority(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson("/api/projects/{$this->project->id}/tasks", ['title' => 'Задача без деталей'])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'todo')
+            ->assertJsonPath('data.priority', 'normal');
+    }
+
     /** Задача без названия не создаётся. */
     public function test_task_requires_title(): void
     {
