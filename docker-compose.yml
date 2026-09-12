@@ -28,7 +28,11 @@ x-app: &app-env
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      # Стенд из стадии dev: на нём гоняются тесты.
+      # Боевой образ собирается без target и dev-зависимостей не содержит
+      target: dev
     environment:
       <<: *app-env
     depends_on:
@@ -39,7 +43,11 @@ services:
 
   # Разгребает очередь: письма отправляются здесь, а не в момент запроса
   worker:
-    build: .
+    build:
+      context: .
+      # Стенд из стадии dev: на нём гоняются тесты.
+      # Боевой образ собирается без target и dev-зависимостей не содержит
+      target: dev
     entrypoint: ["php"]
     command: ["artisan", "queue:work", "--tries=3", "--max-time=3600", "--verbose"]
     environment:
@@ -52,7 +60,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "8000:80"
+      - "${HTTP_PORT:-8001}:80"
     volumes:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
@@ -74,12 +82,20 @@ services:
 
   redis:
     image: redis:7-alpine
+    # appendonly и том обязательны: без них docker compose down уносит всё,
+    # что лежало в очереди. Двести писем с backoff до пятнадцати минут
+    # исчезали бесследно — ни в failed_jobs, ни в логе
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
 
   # Ловит исходящие письма и показывает их в браузере
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "8025:8025"
+      - "${MAIL_UI_PORT:-8026}:8025"
 
 volumes:
   pgdata:
+  redisdata:

@@ -1,4 +1,5 @@
-FROM php:8.3-fpm-alpine
+# Боевой образ: без dev-зависимостей
+FROM php:8.3-fpm-alpine AS base
 
 RUN apk add --no-cache \
         git \
@@ -35,3 +36,12 @@ EXPOSE 9000
 
 ENTRYPOINT ["entrypoint"]
 CMD ["php-fpm"]
+
+# --- Стенд и CI ---
+#
+# Тут же phpunit и остальной инструмент: в боевом образе им не место,
+# но без отдельной стадии `php artisan test` внутри контейнера отвечал
+# «Command "test" is not defined» — тесты просто негде было гонять.
+FROM base AS dev
+
+RUN composer install --no-interaction --prefer-dist     && composer dump-autoload --optimize --no-interaction

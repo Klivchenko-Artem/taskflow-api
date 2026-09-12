@@ -60,13 +60,17 @@ class CommentTest extends TestCase
         $task = Task::factory()->for($project)->create();
         $stranger = User::factory()->create();
 
+        // «Не найдено», а не «нельзя»: иначе по коду ответа видно, какие
+        // задачи в системе существуют
         $this->actingAs($stranger, 'sanctum')
             ->getJson("/api/tasks/{$task->id}/comments")
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->actingAs($stranger, 'sanctum')
             ->postJson("/api/tasks/{$task->id}/comments", ['body' => 'Привет'])
-            ->assertForbidden();
+            ->assertNotFound();
+
+        $this->assertDatabaseMissing('comments', ['body' => 'Привет']);
     }
 
     /** Удалили задачу — комментарии ушли вместе с ней. */

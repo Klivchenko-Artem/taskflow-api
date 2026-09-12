@@ -95,6 +95,15 @@ class ProjectController extends Controller
 
     #[OA\Put(
         path: '/api/projects/{project}',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', maxLength: 255),
+                    new OA\Property(property: 'description', type: 'string', nullable: true),
+                ],
+            ),
+        ),
         summary: 'Изменить проект',
         security: [['bearerAuth' => []]],
         tags: ['Проекты'],

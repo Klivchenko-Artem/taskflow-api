@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskRequest;
+use App\Http\Requests\TaskFilterRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Project;
@@ -35,12 +36,12 @@ class TaskController extends Controller
             new OA\Response(response: 403, description: 'Вы не участник проекта'),
         ]
     )]
-    public function index(Request $request, Project $project): AnonymousResourceCollection
+    public function index(TaskFilterRequest $request, Project $project): AnonymousResourceCollection
     {
         $this->authorize('view', $project);
 
         $tasks = $project->tasks()
-            ->filter($request->only(['status', 'priority', 'assignee_id', 'due_before', 'search']))
+            ->filter($request->filters())
             ->with('assignee')
             ->withCount('comments')
             ->latest()
@@ -112,6 +113,19 @@ class TaskController extends Controller
 
     #[OA\Put(
         path: '/api/tasks/{task}',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                    new OA\Property(property: 'description', type: 'string', nullable: true),
+                    new OA\Property(property: 'status', type: 'string', enum: ['todo', 'in_progress', 'testing', 'done']),
+                    new OA\Property(property: 'priority', type: 'string', enum: ['low', 'normal', 'high']),
+                    new OA\Property(property: 'due_date', type: 'string', format: 'date', nullable: true),
+                    new OA\Property(property: 'assignee_id', type: 'integer', nullable: true, description: 'Только участник этого проекта'),
+                ],
+            ),
+        ),
         summary: 'Изменить задачу',
         security: [['bearerAuth' => []]],
         tags: ['Задачи'],

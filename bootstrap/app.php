@@ -13,7 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // В Laravel 13 группа api по умолчанию ограничителя не содержит:
+        // без этой строки на /api/login можно было гонять подбор пароля
+        // с той скоростью, какую выдержит железо
+        $middleware->throttleApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

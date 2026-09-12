@@ -7,9 +7,14 @@ use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Открытые маршруты
-Route::post('register', [AuthController::class, 'register']);
-Route::post('login', [AuthController::class, 'login']);
+// Открытые маршруты.
+//
+// Отдельный, более строгий лимит: вход и регистрация считают bcrypt, то есть
+// жгут процессор на каждую попытку, и именно их перебирают
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login', [AuthController::class, 'login']);
+});
 
 // Всё остальное — только с токеном Sanctum
 Route::middleware('auth:sanctum')->group(function () {

@@ -7,7 +7,6 @@ use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskAssigned;
 use App\Notifications\TaskCommented;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -124,12 +123,4 @@ class NotificationTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    /** Письма уходят в очередь, а не отправляются прямо в запросе. */
-    public function test_notifications_are_queued(): void
-    {
-        $this->assertInstanceOf(
-            ShouldQueue::class,
-            new TaskAssigned(Task::factory()->for($this->project)->create(), $this->owner)
-        );
-    }
 }

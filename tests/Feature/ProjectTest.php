@@ -51,7 +51,12 @@ class ProjectTest extends TestCase
             ->assertJsonValidationErrors('name');
     }
 
-    /** Чужой проект не показываем. */
+    /**
+     * Чужой проект отвечает «не найдено», а не «нельзя».
+     *
+     * Разница между 403 на существующем и 404 на отсутствующем — это готовый
+     * оракул: за один проход по номерам видно, сколько в системе проектов.
+     */
     public function test_stranger_cannot_view_project(): void
     {
         $project = Project::factory()->create();
@@ -59,7 +64,49 @@ class ProjectTest extends TestCase
 
         $this->actingAs($stranger, 'sanctum')
             ->getJson("/api/projects/{$project->id}")
-            ->assertForbidden();
+            ->assertNotFound();
+
+        // Ответ на чужой и на несуществующий проект обязан быть одинаковым
+        $this->actingAs($stranger, 'sanctum')
+            ->getJson('/api/projects/999999')
+            ->assertNotFound();
+    }
+
+    /** Чужой проект нельзя и переименовать. */
+    public function test_stranger_cannot_update_project(): void
+    {
+        $project = Project::factory()->create();
+        $stranger = User::factory()->create();
+
+        // Эта ручка не была покрыта вообще: удали из неё authorize —
+        // и все тесты остались бы зелёными
+        $this->actingAs($stranger, 'sanctum')
+            ->putJson("/api/projects/{$project->id}", ['name' => 'Присвоено'])
+            ->assertNotFound();
+
+        $this->assertDatabaseMissing('projects', ['name' => 'Присвоено']);
+    }
+
+    /** Участник проект переименовать может. */
+    public function test_member_can_update_project(): void
+    {
+        $project = Project::factory()->create();
+
+        $this->actingAs($project->owner, 'sanctum')
+            ->putJson("/api/projects/{$project->id}", ['name' => 'Новое имя'])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Новое имя');
+    }
+
+    /** Имя проекта обязательно и при правке. */
+    public function test_update_validates_name(): void
+    {
+        $project = Project::factory()->create();
+
+        $this->actingAs($project->owner, 'sanctum')
+            ->putJson("/api/projects/{$project->id}", ['name' => ''])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('name');
     }
 
     /** Участник проект видит. */

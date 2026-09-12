@@ -19,6 +19,21 @@ class TaskAssigned extends Notification implements ShouldQueue
     /** Между попытками — минута, пять, пятнадцать. */
     public array $backoff = [60, 300, 900];
 
+    /**
+     * Три попытки кончились — записываем это в журнал.
+     *
+     * Без failed() уведомление просто ложилось в failed_jobs и оставалось там
+     * навсегда: исполнитель не узнал, что на него повесили задачу, и никто
+     * об этом не узнал тоже.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        \Illuminate\Support\Facades\Log::error('Уведомление о назначении не доставлено', [
+            'task_id' => $this->task->id,
+            'error' => $exception->getMessage(),
+        ]);
+    }
+
     public function __construct(
         private readonly Task $task,
         private readonly User $assignedBy,
