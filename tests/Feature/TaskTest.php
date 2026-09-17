@@ -211,7 +211,7 @@ class TaskTest extends TestCase
      * Вложенные ручки задач тоже закрыты.
      *
      * Их не проверял ни один из прежних тестов: удали authorize из index
-     * и store — и посторонний читал бы и создавал задачи в любом чужом
+     * и store, и посторонний читал бы и создавал задачи в любом чужом
      * проекте по его номеру, а сьют остался бы зелёным.
      */
     public function test_stranger_cannot_use_project_task_endpoints(): void
@@ -229,13 +229,13 @@ class TaskTest extends TestCase
         $this->assertDatabaseMissing('tasks', ['title' => 'Чужая задача']);
     }
 
-    /** Кривые фильтры — это 422, а не пятисотка. */
+    /** Кривые фильтры, это 422, а не пятисотка. */
     public function test_broken_filters_are_rejected(): void
     {
         Task::factory()->for($this->project)->create();
 
         // На PostgreSQL нечисловой assignee_id давал 500 (invalid input syntax
-        // for type bigint), а на SQLite фильтр молча возвращал все задачи —
+        // for type bigint), а на SQLite фильтр молча возвращал все задачи:
         // то есть врал, даже не падая
         $this->actingAs($this->owner, 'sanctum')
             ->getJson("/api/projects/{$this->project->id}/tasks?assignee_id=abc")

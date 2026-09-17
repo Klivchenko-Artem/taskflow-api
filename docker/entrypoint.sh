@@ -16,7 +16,13 @@ echo "База готова."
 
 php artisan migrate --force
 php artisan l5-swagger:generate
-php artisan config:cache
+# Кеш конфигурации перекрывает переменные окружения целиком, включая настройки
+# тестов, поэтому на стенде его не строим
+if [ "$APP_ENV" = "local" ] || [ "$APP_ENV" = "testing" ]; then
+    php artisan config:clear
+else
+    php artisan config:cache
+fi
 php artisan route:cache
 
 exec "$@"

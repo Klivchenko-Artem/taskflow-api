@@ -1,4 +1,4 @@
-# Боевой образ: без dev-зависимостей
+# Образ для запуска: без dev-зависимостей
 FROM php:8.3-fpm-alpine AS base
 
 RUN apk add --no-cache \
@@ -20,7 +20,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Зависимости отдельным слоем — пересобираются только при смене composer.lock
+# Зависимости отдельным слоем, пересобираются только при смене composer.lock
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
 
@@ -39,9 +39,11 @@ CMD ["php-fpm"]
 
 # --- Стенд и CI ---
 #
-# Тут же phpunit и остальной инструмент: в боевом образе им не место,
-# но без отдельной стадии `php artisan test` внутри контейнера отвечал
-# «Command "test" is not defined» — тесты просто негде было гонять.
+# Тут же phpunit и остальной инструмент для тестов
 FROM base AS dev
 
-RUN composer install --no-interaction --prefer-dist     && composer dump-autoload --optimize --no-interaction
+RUN composer install --no-interaction --prefer-dist
+
+# Последней стадией снова идёт образ для запуска: `docker build .` без --target
+# должен собирать его, а не стенд с dev-зависимостями
+FROM base AS prod

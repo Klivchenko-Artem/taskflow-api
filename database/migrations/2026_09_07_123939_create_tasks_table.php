@@ -19,7 +19,7 @@ return new class extends Migration
             $table->date('due_date')->nullable();
             $table->timestamps();
 
-            // Список задач всегда фильтруется внутри проекта — индекс под это.
+            // Список задач всегда фильтруется внутри проекта, индекс под это.
             $table->index(['project_id', 'status']);
             $table->index('assignee_id');
             $table->index('due_date');

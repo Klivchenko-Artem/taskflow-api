@@ -75,7 +75,7 @@ class AuthTest extends TestCase
         ])->assertOk()->assertJsonStructure(['token']);
     }
 
-    /** Неверный пароль — ошибка, а не токен. */
+    /** Неверный пароль, ошибка, а не токен. */
     public function test_login_with_wrong_password_fails(): void
     {
         User::factory()->create([

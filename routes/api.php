@@ -7,16 +7,14 @@ use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Открытые маршруты.
-//
-// Отдельный, более строгий лимит: вход и регистрация считают bcrypt, то есть
-// жгут процессор на каждую попытку, и именно их перебирают
-Route::middleware('throttle:10,1')->group(function () {
+// Открытые маршруты с отдельным строгим лимитом: вход и регистрация считают
+// bcrypt и именно их перебирают. Настройка лимита в AppServiceProvider
+Route::middleware('throttle:auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
 });
 
-// Всё остальное — только с токеном Sanctum
+// Всё остальное только с токеном Sanctum
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('me', [AuthController::class, 'me']);
@@ -26,7 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('projects', ProjectController::class);
     Route::post('projects/{project}/members', [ProjectController::class, 'addMember']);
 
-    // Задачи живут внутри проекта, поэтому список и создание — вложенные
+    // Задачи живут внутри проекта, поэтому список и создание вложенные
     Route::get('projects/{project}/tasks', [TaskController::class, 'index']);
     Route::post('projects/{project}/tasks', [TaskController::class, 'store']);
 

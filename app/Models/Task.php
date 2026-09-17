@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Like;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -61,6 +62,6 @@ class Task extends Model
             ->when($filters['priority'] ?? null, fn (Builder $q, $priority) => $q->where('priority', $priority))
             ->when($filters['assignee_id'] ?? null, fn (Builder $q, $id) => $q->where('assignee_id', $id))
             ->when($filters['due_before'] ?? null, fn (Builder $q, $date) => $q->whereDate('due_date', '<=', $date))
-            ->when($filters['search'] ?? null, fn (Builder $q, $text) => $q->where('title', 'like', "%{$text}%"));
+            ->when($filters['search'] ?? null, fn (Builder $q, $text) => Like::contains($q, 'title', $text));
     }
 }

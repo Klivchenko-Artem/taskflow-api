@@ -8,9 +8,9 @@ use OpenApi\Attributes as OA;
 #[OA\Info(
     version: '1.0.0',
     title: 'Task Tracker API',
-    description: 'REST API трекера задач: проекты, участники, задачи, комментарии. Авторизация — токены Sanctum.'
+    description: 'REST API трекера задач: проекты, участники, задачи, комментарии. Авторизация по токенам Sanctum.'
 )]
-#[OA\Server(url: 'http://localhost:8000', description: 'Локальный запуск')]
+#[OA\Server(url: L5_SWAGGER_CONST_HOST, description: 'Локальный запуск')]
 #[OA\SecurityScheme(
     securityScheme: 'bearerAuth',
     type: 'http',

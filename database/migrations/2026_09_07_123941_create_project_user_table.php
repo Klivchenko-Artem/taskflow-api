@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('role')->default('member');
             $table->timestamps();
 
-            // Один человек — одно участие в проекте.
+            // Один человек, одно участие в проекте.
             $table->unique(['project_id', 'user_id']);
         });
     }

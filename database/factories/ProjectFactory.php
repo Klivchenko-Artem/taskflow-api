@@ -19,7 +19,7 @@ class ProjectFactory extends Factory
         ];
     }
 
-    /** Проект с владельцем в участниках — как его создаёт API. */
+    /** Проект с владельцем в участниках, как его создаёт API. */
     public function configure(): static
     {
         return $this->afterCreating(function (Project $project) {

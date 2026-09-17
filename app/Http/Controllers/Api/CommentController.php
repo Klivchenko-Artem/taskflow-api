@@ -7,6 +7,7 @@ use App\Http\Requests\StoreCommentRequest;
 use App\Http\Resources\CommentResource;
 use App\Models\Task;
 use App\Notifications\TaskCommented;
+use App\Support\SafeNotify;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use OpenApi\Attributes as OA;
@@ -66,12 +67,12 @@ class CommentController extends Controller
             'body' => $request->validated('body'),
         ]);
 
-        // Исполнителю сообщаем, что по его задаче написали — но не когда
+        // Исполнителю сообщаем, что по его задаче написали, но не когда
         // он комментирует сам себя
         $assignee = $task->assignee;
 
         if ($assignee && $assignee->isNot($request->user())) {
-            $assignee->notify(new TaskCommented($comment->load('task', 'user')));
+            SafeNotify::send($assignee, new TaskCommented($comment->load('task', 'user')));
         }
 
         return (new CommentResource($comment->load('user')))

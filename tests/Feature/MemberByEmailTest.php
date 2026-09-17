@@ -27,7 +27,7 @@ class MemberByEmailTest extends TestCase
         ]);
     }
 
-    /** Незнакомая почта — понятная ошибка. */
+    /** Незнакомая почта, понятная ошибка. */
     public function test_unknown_email_is_rejected(): void
     {
         $project = Project::factory()->create();

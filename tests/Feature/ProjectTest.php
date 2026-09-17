@@ -54,7 +54,7 @@ class ProjectTest extends TestCase
     /**
      * Чужой проект отвечает «не найдено», а не «нельзя».
      *
-     * Разница между 403 на существующем и 404 на отсутствующем — это готовый
+     * Разница между 403 на существующем и 404 на отсутствующем, это готовый
      * оракул: за один проход по номерам видно, сколько в системе проектов.
      */
     public function test_stranger_cannot_view_project(): void
@@ -78,7 +78,7 @@ class ProjectTest extends TestCase
         $project = Project::factory()->create();
         $stranger = User::factory()->create();
 
-        // Эта ручка не была покрыта вообще: удали из неё authorize —
+        // Эта ручка не была покрыта вообще: удали из неё authorize:
         // и все тесты остались бы зелёными
         $this->actingAs($stranger, 'sanctum')
             ->putJson("/api/projects/{$project->id}", ['name' => 'Присвоено'])

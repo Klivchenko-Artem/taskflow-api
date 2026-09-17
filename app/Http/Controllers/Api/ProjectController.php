@@ -42,7 +42,7 @@ class ProjectController extends Controller
 
     #[OA\Post(
         path: '/api/projects',
-        summary: 'Создать проект — автор сразу становится владельцем и участником',
+        summary: 'Создать проект, автор сразу становится владельцем и участником',
         security: [['bearerAuth' => []]],
         tags: ['Проекты'],
         requestBody: new OA\RequestBody(
@@ -64,7 +64,7 @@ class ProjectController extends Controller
     {
         $project = $request->user()->ownedProjects()->create($request->validated());
 
-        // Владелец автоматически становится участником — иначе не увидит свой же проект.
+        // Владелец автоматически становится участником, иначе не увидит свой же проект.
         $project->members()->attach($request->user()->id, ['role' => 'owner']);
 
         return (new ProjectResource($project->load('owner')->loadCount('tasks')))
@@ -126,7 +126,7 @@ class ProjectController extends Controller
 
     #[OA\Delete(
         path: '/api/projects/{project}',
-        summary: 'Удалить проект вместе с задачами — только владелец',
+        summary: 'Удалить проект вместе с задачами, только владелец',
         security: [['bearerAuth' => []]],
         tags: ['Проекты'],
         parameters: [
@@ -148,7 +148,7 @@ class ProjectController extends Controller
 
     #[OA\Post(
         path: '/api/projects/{project}/members',
-        summary: 'Добавить участника — только владелец',
+        summary: 'Добавить участника, только владелец',
         security: [['bearerAuth' => []]],
         tags: ['Проекты'],
         parameters: [

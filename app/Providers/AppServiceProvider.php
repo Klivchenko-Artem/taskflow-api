@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
      *
      * В Laravel 13 группа `api` лимитера по умолчанию не содержит, и без него
      * на `/api/login` можно было гонять подбор пароля с той скоростью, какую
-     * выдержит железо. Считаем по пользователю, а если он не представился —
+     * выдержит железо. Считаем по пользователю, а если он не представился:
      * по адресу: иначе один человек с бесконечным токеном занимал бы лимит
      * всей своей сети.
      */
@@ -38,6 +38,17 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Вход: 10 попыток в минуту на пару почта и адрес, чтобы один перебор
+        // не закрывал вход всем за общим прокси, и 60 на адрес целиком
+        RateLimiter::for('auth', function (Request $request) {
+            $email = mb_strtolower((string) $request->input('email'));
+
+            return [
+                Limit::perMinute(10)->by('auth:'.$email.'|'.$request->ip()),
+                Limit::perMinute(60)->by('auth-ip:'.$request->ip()),
+            ];
         });
     }
 }

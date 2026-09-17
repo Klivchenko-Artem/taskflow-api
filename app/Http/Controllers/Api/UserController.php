@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserSuggestionResource;
 use App\Models\Project;
 use App\Models\User;
+use App\Support\Like;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use OpenApi\Attributes as OA;
@@ -18,7 +19,7 @@ class UserController extends Controller
      *
      * Без обязательного поиска ручка отдавала имена и почты всех
      * зарегистрированных по 50 за страницу: пять секунд на регистрацию, минута
-     * на выкачивание всей адресной книги — и готовая база для рассылки
+     * на выкачивание всей адресной книги, и готовая база для рассылки
      * «по задаче в TaskFlow».
      */
     private const MIN_SEARCH_LENGTH = 3;
@@ -28,8 +29,8 @@ class UserController extends Controller
 
     #[OA\Get(
         path: '/api/users',
-        summary: 'Подсказки по людям — чтобы выбрать, кого позвать в проект',
-        description: 'Поиск обязателен: от трёх символов. Почта в ответе не отдаётся — '.
+        summary: 'Подсказки по людям, чтобы выбрать, кого позвать в проект',
+        description: 'Поиск обязателен: от трёх символов. Почта в ответе не отдаётся, '.
             'для приглашения достаточно идентификатора, а сам адрес приглашающий и так знает.',
         security: [['bearerAuth' => []]],
         tags: ['Пользователи'],
@@ -55,21 +56,20 @@ class UserController extends Controller
 
         $users = User::query()
             ->where(function ($query) use ($search) {
-                // Экранируем служебные символы LIKE: иначе «%» возвращает всех,
-                // а «_» матчит любой одиночный символ
-                $escaped = addcslashes($search, '%_\\');
-
-                $query->where('name', 'like', "%{$escaped}%")
-                    ->orWhere('email', 'like', "%{$escaped}%");
+                // Имя ищется подстрокой, а почта только целиком: подстрокой
+                // по почте адрес восстанавливался посимвольно, хоть в ответе
+                // его и нет
+                Like::contains($query, 'name', $search);
+                $query->orWhere('email', mb_strtolower(trim($search)));
             })
             ->when(isset($validated['exclude_project']), function ($query) use ($request, $validated) {
                 $projectId = (int) $validated['exclude_project'];
 
-                // Состав чужого проекта — не наше дело.
+                // Состав чужого проекта, не наше дело.
                 //
                 // Раньше номер брался из запроса как есть: разница между полным
                 // списком и списком с exclude_project давала поимённый состав
-                // любого проекта, а перебором по номерам — карту всех команд.
+                // любого проекта, а перебором по номерам, карту всех команд.
                 $project = Project::query()
                     ->whereKey($projectId)
                     ->whereHas('members', fn ($q) => $q->whereKey($request->user()->id))

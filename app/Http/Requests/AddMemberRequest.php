@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -14,19 +16,18 @@ class AddMemberRequest extends FormRequest
      *
      * FormRequest валидируется до того, как управление дойдёт до контроллера:
      * посторонний получал 422 «пользователь с такой почтой не зарегистрирован»
-     * или 403 в зависимости от того, есть ли такой адрес в базе, — то есть
+     * или 403 в зависимости от того, есть ли такой адрес в базе, то есть
      * ручка отвечала на вопрос «зарегистрирован ли этот человек» тому,
      * у кого вообще нет права сюда ходить.
      */
-    public function authorize(): bool
+    public function authorize(): Response
     {
-        $project = $this->route('project');
-
-        return $project !== null && $this->user()->can('addMember', $project);
+        // Response, а не bool: так сохраняется 404 для постороннего
+        return Gate::inspect('addMember', $this->route('project'));
     }
 
     /**
-     * Человека зовут в проект либо по id, либо по почте — интерфейсу удобнее
+     * Человека зовут в проект либо по id, либо по почте, интерфейсу удобнее
      * почта, машине удобнее id.
      */
     public function rules(): array
@@ -35,6 +36,7 @@ class AddMemberRequest extends FormRequest
             'user_id' => [
                 'required_without:email',
                 'nullable',
+                'integer',
                 'exists:users,id',
                 Rule::unique('project_user', 'user_id')
                     ->where('project_id', $this->route('project')->id),
@@ -65,6 +67,13 @@ class AddMemberRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('email'))) {
+            $this->merge(['email' => mb_strtolower(trim($this->input('email')))]);
+        }
+    }
+
     public function messages(): array
     {
         return [
@@ -73,7 +82,7 @@ class AddMemberRequest extends FormRequest
         ];
     }
 
-    /** Кого именно добавляем — id из запроса или найденный по почте. */
+    /** Кого именно добавляем, id из запроса или найденный по почте. */
     public function memberId(): int
     {
         return $this->filled('user_id')

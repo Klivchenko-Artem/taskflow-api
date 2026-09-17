@@ -33,7 +33,7 @@ class NotificationTest extends TestCase
         $this->project->members()->attach($this->member->id, ['role' => 'member']);
     }
 
-    /** Назначили задачу на человека — он получает письмо. */
+    /** Назначили задачу на человека, он получает письмо. */
     public function test_assignee_is_notified_on_task_creation(): void
     {
         $this->actingAs($this->owner, 'sanctum')
@@ -56,7 +56,7 @@ class NotificationTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    /** Назначил задачу сам на себя — письмо самому себе не нужно. */
+    /** Назначил задачу сам на себя, письмо самому себе не нужно. */
     public function test_no_notification_when_assigning_to_yourself(): void
     {
         $this->actingAs($this->owner, 'sanctum')
@@ -69,7 +69,7 @@ class NotificationTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    /** Сменили исполнителя — письмо уходит новому. */
+    /** Сменили исполнителя, письмо уходит новому. */
     public function test_new_assignee_is_notified_on_update(): void
     {
         $task = Task::factory()->for($this->project)->create();
@@ -95,7 +95,7 @@ class NotificationTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    /** Комментарий к задаче — исполнителю приходит письмо. */
+    /** Комментарий к задаче, исполнителю приходит письмо. */
     public function test_assignee_is_notified_about_comment(): void
     {
         $task = Task::factory()->for($this->project)->create([
@@ -109,7 +109,7 @@ class NotificationTest extends TestCase
         Notification::assertSentTo($this->member, TaskCommented::class);
     }
 
-    /** Исполнитель пишет комментарий сам себе — письма не будет. */
+    /** Исполнитель пишет комментарий сам себе, письма не будет. */
     public function test_own_comment_does_not_notify(): void
     {
         $task = Task::factory()->for($this->project)->create([

@@ -1,5 +1,5 @@
 # Локальный запуск целиком: API, воркер очереди, PostgreSQL, Redis и почта.
-# APP_KEY здесь фиксированный — это демо-стенд, в реальном окружении ключ
+# APP_KEY здесь фиксированный, это демо-стенд: в реальном окружении ключ
 # передаётся через переменные окружения и в репозиторий не попадает.
 x-app: &app-env
   # Имя приложения задаём явно: из него Laravel строит префикс ключей Redis,
@@ -8,7 +8,7 @@ x-app: &app-env
   APP_ENV: local
   APP_DEBUG: "true"
   APP_KEY: base64:lMhJ0lETJ9p/0S/QTOqAbUdSQaLQUUp9GeU0rrco3fs=
-  APP_URL: http://localhost:8000
+  APP_URL: http://localhost:${HTTP_PORT:-8000}
   DB_CONNECTION: pgsql
   DB_HOST: db
   DB_PORT: "5432"
@@ -24,14 +24,14 @@ x-app: &app-env
   MAIL_PORT: "1025"
   MAIL_FROM_ADDRESS: no-reply@taskflow.local
   MAIL_FROM_NAME: TaskFlow
-  L5_SWAGGER_CONST_HOST: http://localhost:8000
+  L5_SWAGGER_CONST_HOST: http://localhost:${HTTP_PORT:-8000}
 
 services:
   app:
     build:
       context: .
       # Стенд из стадии dev: на нём гоняются тесты.
-      # Боевой образ собирается без target и dev-зависимостей не содержит
+      # Образ для запуска собирается без target и dev-зависимостей не содержит
       target: dev
     environment:
       <<: *app-env
@@ -46,7 +46,7 @@ services:
     build:
       context: .
       # Стенд из стадии dev: на нём гоняются тесты.
-      # Боевой образ собирается без target и dev-зависимостей не содержит
+      # Образ для запуска собирается без target и dev-зависимостей не содержит
       target: dev
     entrypoint: ["php"]
     command: ["artisan", "queue:work", "--tries=3", "--max-time=3600", "--verbose"]
@@ -60,7 +60,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "${HTTP_PORT:-8001}:80"
+      - "${HTTP_PORT:-8000}:80"
     volumes:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
@@ -84,7 +84,7 @@ services:
     image: redis:7-alpine
     # appendonly и том обязательны: без них docker compose down уносит всё,
     # что лежало в очереди. Двести писем с backoff до пятнадцати минут
-    # исчезали бесследно — ни в failed_jobs, ни в логе
+    # исчезали бесследно, ни в failed_jobs, ни в логе
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data
@@ -94,7 +94,7 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "${MAIL_UI_PORT:-8026}:8025"
+      - "${MAIL_UI_PORT:-8025}:8025"
 
 volumes:
   pgdata:

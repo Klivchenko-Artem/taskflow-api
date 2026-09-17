@@ -31,7 +31,7 @@ class UserListTest extends TestCase
         User::factory()->count(3)->create();
 
         // Иначе пять секунд на регистрацию и минута на выкачивание всей
-        // адресной книги — готовая база для рассылки «по задаче в TaskFlow»
+        // адресной книги, готовая база для рассылки «по задаче в TaskFlow»
         $this->actingAs($user, 'sanctum')
             ->getJson('/api/users')
             ->assertUnprocessable()
@@ -62,7 +62,7 @@ class UserListTest extends TestCase
             ->assertJsonPath('data.0.name', 'Пётр Петров');
 
         // Для приглашения достаточно идентификатора: адрес приглашающий
-        // и так знает, а список чужих адресов — это чужие данные
+        // и так знает, а список чужих адресов, это чужие данные
         $response->assertJsonMissingPath('data.0.email');
         $response->assertJsonMissingPath('data.0.password');
     }
@@ -114,7 +114,7 @@ class UserListTest extends TestCase
         $stranger = User::factory()->create();
 
         // Разница между полным списком и списком с exclude_project давала
-        // поимённый состав любого проекта, а перебор по номерам — карту команд
+        // поимённый состав любого проекта, а перебор по номерам, карту команд
         $this->actingAs($stranger, 'sanctum')
             ->getJson("/api/users?search=Пётр&exclude_project={$foreign->id}")
             ->assertNotFound();

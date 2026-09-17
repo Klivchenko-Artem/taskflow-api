@@ -73,7 +73,7 @@ class CommentTest extends TestCase
         $this->assertDatabaseMissing('comments', ['body' => 'Привет']);
     }
 
-    /** Удалили задачу — комментарии ушли вместе с ней. */
+    /** Удалили задачу, комментарии ушли вместе с ней. */
     public function test_deleting_task_removes_comments(): void
     {
         $project = Project::factory()->create();

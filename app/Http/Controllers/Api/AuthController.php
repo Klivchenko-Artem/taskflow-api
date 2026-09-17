@@ -17,7 +17,7 @@ class AuthController extends Controller
 {
     #[OA\Post(
         path: '/api/register',
-        summary: 'Регистрация — сразу возвращает токен',
+        summary: 'Регистрация, сразу возвращает токен',
         tags: ['Авторизация'],
         requestBody: new OA\RequestBody(
             required: true,
@@ -83,7 +83,7 @@ class AuthController extends Controller
 
     #[OA\Post(
         path: '/api/logout',
-        summary: 'Выход — текущий токен отзывается',
+        summary: 'Выход, текущий токен отзывается',
         security: [['bearerAuth' => []]],
         tags: ['Авторизация'],
         responses: [

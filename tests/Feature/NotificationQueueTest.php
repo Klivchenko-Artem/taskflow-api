@@ -16,7 +16,7 @@ use Tests\TestCase;
  * Отдельным файлом, потому что в NotificationTest весь набор идёт под
  * `Notification::fake()`: он перехватывает отправку до диспетчера очередей,
  * и проверить «через очередь или напрямую» там физически нельзя. Прежний тест
- * это и обходил — проверял `instanceof ShouldQueue`, то есть строчку
+ * это и обходил, проверял `instanceof ShouldQueue`, то есть строчку
  * в сигнатуре класса, которая не могла не сойтись.
  */
 class NotificationQueueTest extends TestCase
