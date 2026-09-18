@@ -10,11 +10,12 @@ logs:
 	docker compose logs -f app
 
 # Воркер собирается отдельным образом: без него он продолжал бы разбирать
-# очередь старым кодом. queue:restart просит его перечитать код после выкладки
+# очередь старым кодом. queue:restart не нужен: up пересоздаёт контейнер
+# воркера с новым образом, а на свежем томе он падал, потому что
+# вызывался раньше, чем entrypoint успевал прогнать миграции
 build:
 	docker compose build app worker
 	docker compose up -d app worker
-	docker compose exec -T app php artisan queue:restart
 
 # Переменные задаются прямо здесь: в контейнере они выставлены настоящим
 # окружением, а оно главнее <env> из phpunit.xml. Без них тесты пошли бы

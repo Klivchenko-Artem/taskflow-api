@@ -24,7 +24,7 @@ class CommentController extends Controller
         ],
         responses: [
             new OA\Response(response: 200, description: 'Список комментариев'),
-            new OA\Response(response: 403, description: 'Задача из чужого проекта'),
+            new OA\Response(response: 404, description: 'Задача не найдена или она из чужого проекта'),
         ]
     )]
     public function index(Task $task): AnonymousResourceCollection
@@ -55,13 +55,11 @@ class CommentController extends Controller
         ),
         responses: [
             new OA\Response(response: 201, description: 'Комментарий добавлен'),
-            new OA\Response(response: 403, description: 'Задача из чужого проекта'),
+            new OA\Response(response: 404, description: 'Задача не найдена или она из чужого проекта'),
         ]
     )]
     public function store(StoreCommentRequest $request, Task $task): JsonResponse
     {
-        $this->authorize('comment', $task);
-
         $comment = $task->comments()->create([
             'user_id' => $request->user()->id,
             'body' => $request->validated('body'),

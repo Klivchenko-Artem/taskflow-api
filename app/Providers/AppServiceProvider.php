@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Mail\Markdown;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -23,6 +25,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiting();
+
+        // Имя, название задачи и комментарий подставляются в Markdown письма.
+        // Без экранирования [Войти](https://evil.example) становился ссылкой
+        // от имени сервиса. Фреймворк экранирует сам и в HTML, и в тексте,
+        // в отличие от ручной замены, которая оставляла в письме \ и &lt;
+        Markdown::withSecuredEncoding();
     }
 
     /**
@@ -40,14 +48,18 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
         });
 
-        // Вход: 10 попыток в минуту на пару почта и адрес, чтобы один перебор
-        // не закрывал вход всем за общим прокси, и 60 на адрес целиком
+        // Вход и регистрация: 10 попыток в минуту на почту, с каких бы адресов
+        // ни шли, чтобы подбор пароля к одному аккаунту не размазывался по
+        // ботнету, и 20 на адрес, чтобы с одного адреса не перебирали пароли
+        // по списку почт. 20, а не 10: за общим офисным прокси сидят многие
         RateLimiter::for('auth', function (Request $request) {
-            $email = mb_strtolower((string) $request->input('email'));
+            // Почта массивом отбивается валидацией, лимитер не должен падать раньше
+            $email = User::normalizeEmail($request->input('email'));
+            $email = is_string($email) ? $email : '';
 
             return [
-                Limit::perMinute(10)->by('auth:'.$email.'|'.$request->ip()),
-                Limit::perMinute(60)->by('auth-ip:'.$request->ip()),
+                Limit::perMinute(10)->by('auth-email:'.$email),
+                Limit::perMinute(20)->by('auth-ip:'.$request->ip()),
             ];
         });
     }

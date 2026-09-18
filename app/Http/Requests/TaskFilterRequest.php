@@ -35,7 +35,7 @@ class TaskFilterRequest extends FormRequest
             'status' => ['nullable', Rule::enum(TaskStatus::class)],
             'priority' => ['nullable', Rule::enum(TaskPriority::class)],
             'assignee_id' => ['nullable', 'integer', 'min:1'],
-            'due_before' => ['nullable', 'date_format:Y-m-d'],
+            'due_before' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:1900-01-01'],
             'search' => ['nullable', 'string', 'max:255'],
             'page' => ['nullable', 'integer', 'min:1'],
         ];

@@ -27,7 +27,9 @@ class StoreTaskRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:5000'],
             'status' => ['sometimes', Rule::in(TaskStatus::values())],
             'priority' => ['sometimes', Rule::in(TaskPriority::values())],
-            'due_date' => ['nullable', 'date_format:Y-m-d'],
+            // Нижняя граница: год 0000 формат пропускает, а PostgreSQL на нём
+            // падает, и вместо 422 выходила пятисотка
+            'due_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:1900-01-01'],
             // Исполнителем может быть только участник этого проекта.
             'assignee_id' => [
                 'nullable',

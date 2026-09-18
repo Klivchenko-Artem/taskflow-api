@@ -34,13 +34,11 @@ class TaskController extends Controller
         ],
         responses: [
             new OA\Response(response: 200, description: 'Список задач'),
-            new OA\Response(response: 403, description: 'Вы не участник проекта'),
+            new OA\Response(response: 404, description: 'Проект не найден или вы не его участник'),
         ]
     )]
     public function index(TaskFilterRequest $request, Project $project): AnonymousResourceCollection
     {
-        $this->authorize('view', $project);
-
         $tasks = $project->tasks()
             ->filter($request->filters())
             ->with('assignee')
@@ -76,13 +74,12 @@ class TaskController extends Controller
         ),
         responses: [
             new OA\Response(response: 201, description: 'Задача создана'),
+            new OA\Response(response: 404, description: 'Проект не найден или вы не его участник'),
             new OA\Response(response: 422, description: 'Ошибка валидации'),
         ]
     )]
     public function store(StoreTaskRequest $request, Project $project): JsonResponse
     {
-        $this->authorize('view', $project);
-
         $task = $project->tasks()->create($request->validated());
 
         $this->notifyAssignee($task, $request->user());
@@ -102,7 +99,7 @@ class TaskController extends Controller
         ],
         responses: [
             new OA\Response(response: 200, description: 'Данные задачи'),
-            new OA\Response(response: 403, description: 'Задача из чужого проекта'),
+            new OA\Response(response: 404, description: 'Задача не найдена или она из чужого проекта'),
         ]
     )]
     public function show(Task $task): TaskResource
@@ -135,13 +132,11 @@ class TaskController extends Controller
         ],
         responses: [
             new OA\Response(response: 200, description: 'Задача обновлена'),
-            new OA\Response(response: 403, description: 'Задача из чужого проекта'),
+            new OA\Response(response: 404, description: 'Задача не найдена или она из чужого проекта'),
         ]
     )]
     public function update(UpdateTaskRequest $request, Task $task): TaskResource
     {
-        $this->authorize('update', $task);
-
         $task->update($request->validated());
 
         // Письмо шлём только когда исполнитель действительно сменился.
@@ -164,7 +159,7 @@ class TaskController extends Controller
         ],
         responses: [
             new OA\Response(response: 204, description: 'Задача удалена'),
-            new OA\Response(response: 403, description: 'Задача из чужого проекта'),
+            new OA\Response(response: 404, description: 'Задача не найдена или она из чужого проекта'),
         ]
     )]
     public function destroy(Task $task): JsonResponse

@@ -97,20 +97,27 @@ class AccessAndInputTest extends TestCase
             ->assertOk();
     }
 
-    /** По куску почты людей не найти, только по адресу целиком. */
-    public function test_email_is_matched_only_exactly(): void
+    /**
+     * Подсказки по почте не ищут ни куском, ни целиком: целиком ручка
+     * отвечала на вопрос «как зовут владельца этого адреса». Позвать по
+     * почте можно добавлением участника, это только владельцу проекта.
+     */
+    public function test_email_is_not_searchable(): void
     {
-        User::factory()->create(['name' => 'Ольга', 'email' => 'olga.secret@example.com']);
+        $olga = User::factory()->create(['name' => 'Ольга', 'email' => 'olga.secret@example.com']);
+
+        foreach (['secret@example', 'OLGA.secret@example.com'] as $search) {
+            $this->actingAs($this->owner, 'sanctum')
+                ->getJson('/api/users?search='.urlencode($search))
+                ->assertOk()
+                ->assertJsonCount(0, 'data');
+        }
 
         $this->actingAs($this->owner, 'sanctum')
-            ->getJson('/api/users?search=secret@example')
-            ->assertOk()
-            ->assertJsonCount(0, 'data');
+            ->postJson("/api/projects/{$this->project->id}/members", ['email' => 'OLGA.secret@example.com'])
+            ->assertOk();
 
-        $this->actingAs($this->owner, 'sanctum')
-            ->getJson('/api/users?search=OLGA.secret@example.com')
-            ->assertOk()
-            ->assertJsonCount(1, 'data');
+        $this->assertTrue($this->project->hasMember($olga));
     }
 
     /** Почта без учёта регистра: регистрация с заглавной и вход строчными. */
@@ -188,5 +195,62 @@ class AccessAndInputTest extends TestCase
         $html = (string) (new TaskCommented($comment->load('task', 'user')))->toMail($this->member)->render();
 
         $this->assertStringNotContainsString('href="https://evil.example"', $html);
+    }
+
+    /**
+     * Спецсимволы в письме выглядят как написали: без обратных слэшей
+     * и двойного экранирования, которые оставляла ручная замена.
+     */
+    public function test_special_characters_are_readable_in_mail(): void
+    {
+        $this->owner->update(['name' => 'Анна_Ли']);
+        $task = Task::factory()->for($this->project)->create(['assignee_id' => $this->member->id]);
+        $comment = $task->comments()->create([
+            'user_id' => $this->owner->id,
+            'body' => 'Сравни 2 < 3 и *звёздочки*',
+        ]);
+
+        $mail = (new TaskCommented($comment->load('task', 'user')))->toMail($this->member);
+        $html = (string) $mail->render();
+        $text = (string) app(\Illuminate\Mail\Markdown::class)->renderText($mail->markdown, $mail->data());
+
+        $this->assertStringContainsString('2 &lt; 3', $html);
+        $this->assertStringNotContainsString('&amp;lt;', $html);
+        $this->assertStringContainsString('Анна_Ли', $text);
+        $this->assertStringContainsString('2 < 3', $text);
+        $this->assertStringNotContainsString('\\', $text);
+    }
+
+    /** Поиск «0» ищет ноль, а не отключает фильтр. */
+    public function test_search_zero_is_a_real_search(): void
+    {
+        Task::factory()->for($this->project)->create(['title' => 'Версия 0.9']);
+        Task::factory()->for($this->project)->create(['title' => 'Без цифр']);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->getJson("/api/projects/{$this->project->id}/tasks?search=0")
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
+    /** Год 0000 отбивается валидацией, а не падает в базе. */
+    public function test_year_zero_due_date_is_rejected(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson("/api/projects/{$this->project->id}/tasks", ['title' => 'Задача', 'due_date' => '0000-01-01'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('due_date');
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->getJson("/api/projects/{$this->project->id}/tasks?due_before=0000-01-01")
+            ->assertUnprocessable();
+    }
+
+    /** id исполнителя строкой из запроса не отменяет письмо. */
+    public function test_string_assignee_id_still_sends_mail(): void
+    {
+        $task = Task::factory()->for($this->project)->make(['assignee_id' => (string) $this->member->id]);
+
+        $this->assertTrue((new TaskAssigned($task, $this->owner))->shouldSend($this->member, 'mail'));
     }
 }

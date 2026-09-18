@@ -67,17 +67,22 @@ class UserListTest extends TestCase
         $response->assertJsonMissingPath('data.0.password');
     }
 
-    /** Поиск по почте работает: пригласить по адресу надо уметь. */
-    public function test_search_by_email_works(): void
+    /**
+     * По почте подсказки не ищут.
+     *
+     * Точный поиск по адресу отдавал имя любому зарегистрированному: готовый
+     * справочник «почта -> имя». Звать по адресу можно через добавление
+     * участника, туда пускают только владельца проекта.
+     */
+    public function test_search_by_email_finds_nobody(): void
     {
         $user = User::factory()->create();
-        $target = User::factory()->create(['email' => 'newcomer@example.com']);
+        User::factory()->create(['name' => 'Новичок', 'email' => 'newcomer@example.com']);
 
         $this->actingAs($user, 'sanctum')
             ->getJson('/api/users?search=newcomer@example.com')
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $target->id);
+            ->assertJsonCount(0, 'data');
     }
 
     /** Служебные символы LIKE не должны работать как шаблон. */

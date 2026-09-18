@@ -82,8 +82,7 @@ class ProjectController extends Controller
         ],
         responses: [
             new OA\Response(response: 200, description: 'Данные проекта'),
-            new OA\Response(response: 403, description: 'Вы не участник проекта'),
-            new OA\Response(response: 404, description: 'Проект не найден'),
+            new OA\Response(response: 404, description: 'Проект не найден или вы не его участник'),
         ]
     )]
     public function show(Project $project): ProjectResource
@@ -112,13 +111,11 @@ class ProjectController extends Controller
         ],
         responses: [
             new OA\Response(response: 200, description: 'Проект обновлён'),
-            new OA\Response(response: 403, description: 'Вы не участник проекта'),
+            new OA\Response(response: 404, description: 'Проект не найден или вы не его участник'),
         ]
     )]
     public function update(UpdateProjectRequest $request, Project $project): ProjectResource
     {
-        $this->authorize('update', $project);
-
         $project->update($request->validated());
 
         return new ProjectResource($project->load('owner'));
@@ -135,6 +132,7 @@ class ProjectController extends Controller
         responses: [
             new OA\Response(response: 204, description: 'Проект удалён'),
             new OA\Response(response: 403, description: 'Удалять может только владелец'),
+            new OA\Response(response: 404, description: 'Проект не найден или вы не его участник'),
         ]
     )]
     public function destroy(Project $project): JsonResponse
@@ -168,13 +166,12 @@ class ProjectController extends Controller
         responses: [
             new OA\Response(response: 200, description: 'Участник добавлен'),
             new OA\Response(response: 403, description: 'Добавлять может только владелец'),
+            new OA\Response(response: 404, description: 'Проект не найден или вы не его участник'),
             new OA\Response(response: 422, description: 'Пользователь уже в проекте'),
         ]
     )]
     public function addMember(AddMemberRequest $request, Project $project): ProjectResource
     {
-        $this->authorize('addMember', $project);
-
         $project->members()->attach(
             $request->memberId(),
             ['role' => $request->input('role', 'member')]

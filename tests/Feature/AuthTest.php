@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -104,6 +107,67 @@ class AuthTest extends TestCase
             ->getJson('/api/me')
             ->assertOk()
             ->assertJsonPath('data.email', $user->email);
+    }
+
+    /**
+     * Почты, заведённые до приведения к строчным, миграция чинит: человек
+     * с Old@Example.COM входит по old@example.com.
+     */
+    public function test_migration_lowercases_old_emails(): void
+    {
+        $migration = require database_path('migrations/2026_09_18_100000_lowercase_user_emails.php');
+        $migration->down();
+
+        DB::table('users')->insert([
+            'name' => 'Старый',
+            'email' => ' Old@Example.COM ',
+            'password' => Hash::make('secret123'),
+        ]);
+
+        $migration->up();
+
+        $this->assertDatabaseHas('users', ['email' => 'old@example.com']);
+        $this->postJson('/api/login', ['email' => 'old@example.com', 'password' => 'secret123'])->assertOk();
+
+        // Дубль в другом регистре база теперь не примет, даже в обход модели
+        $this->expectException(QueryException::class);
+        DB::table('users')->insert(['name' => 'Дубль', 'email' => 'OLD@example.com', 'password' => 'x']);
+    }
+
+    /** Два аккаунта с одной почтой в разном регистре миграция не сливает сама, а останавливается. */
+    public function test_migration_stops_on_case_duplicates(): void
+    {
+        $migration = require database_path('migrations/2026_09_18_100000_lowercase_user_emails.php');
+        $migration->down();
+
+        DB::table('users')->insert([
+            ['name' => 'Один', 'email' => 'Twin@example.com', 'password' => 'x'],
+            ['name' => 'Два', 'email' => 'twin@example.com', 'password' => 'x'],
+        ]);
+
+        $this->expectExceptionMessage('twin@example.com');
+        $migration->up();
+    }
+
+    /** Регистрация с той же почтой в другом регистре не заводит второй аккаунт. */
+    public function test_email_case_does_not_create_second_account(): void
+    {
+        User::factory()->create(['email' => 'artem@example.com']);
+
+        $this->postJson('/api/register', [
+            'name' => 'Двойник',
+            'email' => ' ARTEM@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ])->assertUnprocessable()->assertJsonValidationErrors('email');
+    }
+
+    /** Почта массивом отбивается валидацией, лимитер не падает раньше неё с 500. */
+    public function test_email_as_array_is_422_not_500(): void
+    {
+        $this->postJson('/api/login', ['email' => ['a@b.c'], 'password' => 'x'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
     }
 
     /** После выхода токен удаляется из базы и больше никого не пустит. */

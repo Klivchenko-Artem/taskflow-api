@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -18,6 +19,25 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    /**
+     * Почта без учёта регистра и пробелов по краям: иначе Artem@ и artem@
+     * это два аккаунта, а вход строчными не находит того, кто писал заглавными.
+     *
+     * Одно место на всё приложение: запросы, лимитер и поиск зовут его,
+     * а не повторяют у себя. Не строку возвращает как есть, пусть её
+     * отбракует валидация.
+     */
+    public static function normalizeEmail(mixed $email): mixed
+    {
+        return is_string($email) ? mb_strtolower(trim($email)) : $email;
+    }
+
+    /** Почта пишется в базу уже приведённой, откуда бы ни пришла. */
+    protected function email(): Attribute
+    {
+        return Attribute::make(set: fn (mixed $value) => self::normalizeEmail($value));
+    }
 
     /**
      * Get the attributes that should be cast.

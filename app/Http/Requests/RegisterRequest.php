@@ -2,18 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesEmail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
 class RegisterRequest extends FormRequest
 {
-    protected function prepareForValidation(): void
-    {
-        // Почта без учёта регистра: иначе Artem@ и artem@ это два аккаунта
-        if (is_string($this->input('email'))) {
-            $this->merge(['email' => mb_strtolower(trim($this->input('email')))]);
-        }
-    }
+    use NormalizesEmail;
 
     public function rules(): array
     {

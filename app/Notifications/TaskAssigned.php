@@ -4,7 +4,6 @@ namespace App\Notifications;
 
 use App\Models\Task;
 use App\Models\User;
-use App\Support\MailText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -41,18 +40,23 @@ class TaskAssigned extends Notification implements ShouldQueue
         return ['mail'];
     }
 
-    /** Пока письмо ждало в очереди, задачу могли переназначить на другого. */
+    /**
+     * Пока письмо ждало в очереди, задачу могли переназначить на другого.
+     *
+     * Сравнение через int: без очереди модель приходит из запроса, где id
+     * бывает строкой, и строгое "5" === 5 молча отбрасывало письмо.
+     */
     public function shouldSend(object $notifiable, string $channel): bool
     {
-        return $this->task->assignee_id === $notifiable->id;
+        return (int) $this->task->assignee_id === (int) $notifiable->id;
     }
 
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
             ->subject("Вам назначена задача: {$this->task->title}")
-            ->greeting('Здравствуйте, '.MailText::escape($notifiable->name).'!')
-            ->line(MailText::escape($this->assignedBy->name).' назначил на вас задачу «'.MailText::escape($this->task->title).'».')
+            ->greeting('Здравствуйте, '.$notifiable->name.'!')
+            ->line($this->assignedBy->name.' назначил на вас задачу «'.$this->task->title.'».')
             ->lineIf(
                 $this->task->due_date !== null,
                 'Срок: ' . $this->task->due_date?->toDateString()

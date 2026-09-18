@@ -30,12 +30,12 @@ class UserController extends Controller
     #[OA\Get(
         path: '/api/users',
         summary: 'Подсказки по людям, чтобы выбрать, кого позвать в проект',
-        description: 'Поиск обязателен: от трёх символов. Почта в ответе не отдаётся, '.
-            'для приглашения достаточно идентификатора, а сам адрес приглашающий и так знает.',
+        description: 'Поиск по имени, обязателен, от трёх символов. По почте не ищет и почту не отдаёт: '.
+            'пригласить по адресу можно через POST /api/projects/{project}/members с полем email.',
         security: [['bearerAuth' => []]],
         tags: ['Пользователи'],
         parameters: [
-            new OA\Parameter(name: 'search', in: 'query', required: true, description: 'Имя или почта, от трёх символов', schema: new OA\Schema(type: 'string', minLength: 3)),
+            new OA\Parameter(name: 'search', in: 'query', required: true, description: 'Часть имени, от трёх символов', schema: new OA\Schema(type: 'string', minLength: 3)),
             new OA\Parameter(name: 'exclude_project', in: 'query', description: 'Убрать тех, кто уже в этом проекте (только для своих проектов)', schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
@@ -54,14 +54,12 @@ class UserController extends Controller
 
         $search = $validated['search'];
 
+        // Только по имени. По почте не ищем вовсе: подстрокой адрес
+        // восстанавливался посимвольно, а точным совпадением ручка работала
+        // справочником «почта -> имя» для любого, кто зарегистрировался.
+        // Позвать человека по адресу можно через POST /projects/{id}/members
         $users = User::query()
-            ->where(function ($query) use ($search) {
-                // Имя ищется подстрокой, а почта только целиком: подстрокой
-                // по почте адрес восстанавливался посимвольно, хоть в ответе
-                // его и нет
-                Like::contains($query, 'name', $search);
-                $query->orWhere('email', mb_strtolower(trim($search)));
-            })
+            ->where(fn ($query) => Like::contains($query, 'name', $search))
             ->when(isset($validated['exclude_project']), function ($query) use ($request, $validated) {
                 $projectId = (int) $validated['exclude_project'];
 

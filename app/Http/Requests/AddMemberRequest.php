@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\NormalizesEmail;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Validator;
 
 class AddMemberRequest extends FormRequest
 {
+    use NormalizesEmail;
+
     /**
      * Право проверяем здесь, а не в контроллере.
      *
@@ -65,13 +68,6 @@ class AddMemberRequest extends FormRequest
                 }
             },
         ];
-    }
-
-    protected function prepareForValidation(): void
-    {
-        if (is_string($this->input('email'))) {
-            $this->merge(['email' => mb_strtolower(trim($this->input('email')))]);
-        }
     }
 
     public function messages(): array

@@ -3,7 +3,6 @@
 namespace App\Notifications;
 
 use App\Models\Comment;
-use App\Support\MailText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -33,7 +32,8 @@ class TaskCommented extends Notification implements ShouldQueue
     /** Пока письмо ждало в очереди, задачу могли переназначить на другого. */
     public function shouldSend(object $notifiable, string $channel): bool
     {
-        return $this->comment->task->assignee_id === $notifiable->id;
+        // Через int, как и в TaskAssigned: id из запроса бывает строкой
+        return (int) $this->comment->task->assignee_id === (int) $notifiable->id;
     }
 
     /** Попытки кончились: записываем в журнал, чтобы потеря письма была видна. */
@@ -52,8 +52,8 @@ class TaskCommented extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject("Новый комментарий к задаче: {$task->title}")
-            ->greeting('Здравствуйте, '.MailText::escape($notifiable->name).'!')
-            ->line(MailText::escape($author->name).' прокомментировал задачу «'.MailText::escape($task->title).'»:')
-            ->line(MailText::escape(Str::limit($this->comment->body, 300)));
+            ->greeting('Здравствуйте, '.$notifiable->name.'!')
+            ->line($author->name.' прокомментировал задачу «'.$task->title.'»:')
+            ->line(Str::limit($this->comment->body, 300));
     }
 }
