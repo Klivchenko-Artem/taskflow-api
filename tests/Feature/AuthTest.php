@@ -134,7 +134,11 @@ class AuthTest extends TestCase
         DB::table('users')->insert(['name' => 'Дубль', 'email' => 'OLD@example.com', 'password' => 'x']);
     }
 
-    /** Два аккаунта с одной почтой в разном регистре миграция не сливает сама, а останавливается. */
+    /**
+     * Два аккаунта с одной почтой в разном регистре миграция не сливает сама,
+     * а останавливается. В тексте только id: он уедет в журнал развёртывания,
+     * и чужих почт там быть не должно.
+     */
     public function test_migration_stops_on_case_duplicates(): void
     {
         $migration = require database_path('migrations/2026_09_18_100000_lowercase_user_emails.php');
@@ -145,8 +149,38 @@ class AuthTest extends TestCase
             ['name' => 'Два', 'email' => 'twin@example.com', 'password' => 'x'],
         ]);
 
-        $this->expectExceptionMessage('twin@example.com');
+        $ids = DB::table('users')->orderBy('id')->pluck('id')->all();
+
+        try {
+            $migration->up();
+            $this->fail('Миграция прошла мимо дублей');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('id: '.$ids[0].', '.$ids[1], $e->getMessage());
+            $this->assertStringNotContainsString('twin@example.com', $e->getMessage());
+        }
+
+        // Ничего не переписано: разбираться с этим человеку
+        $this->assertDatabaseHas('users', ['email' => 'Twin@example.com']);
+    }
+
+    /**
+     * Почту приводит PHP, а не SQL: lower() базы не трогает не-ASCII,
+     * и владелец адреса с кириллицей остался бы с прежним регистром.
+     */
+    public function test_migration_lowercases_non_ascii_emails(): void
+    {
+        $migration = require database_path('migrations/2026_09_18_100000_lowercase_user_emails.php');
+        $migration->down();
+
+        DB::table('users')->insert([
+            'name' => 'Почта кириллицей',
+            'email' => 'ПОЧТА@example.com',
+            'password' => 'x',
+        ]);
+
         $migration->up();
+
+        $this->assertDatabaseHas('users', ['email' => 'почта@example.com']);
     }
 
     /** Регистрация с той же почтой в другом регистре не заводит второй аккаунт. */
@@ -168,6 +202,36 @@ class AuthTest extends TestCase
         $this->postJson('/api/login', ['email' => ['a@b.c'], 'password' => 'x'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('email');
+    }
+
+    /**
+     * Перебор с одного адреса не запирает вход владельцу почты с другого.
+     *
+     * Лимит по одной только почте это умел: десяти запросов в минуту хватало,
+     * чтобы посторонний закрыл чужой аккаунт для входа.
+     */
+    public function test_login_throttle_does_not_lock_out_other_addresses(): void
+    {
+        User::factory()->create([
+            'email' => 'victim@example.com',
+            'password' => Hash::make('secret123'),
+        ]);
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.1'])
+                ->postJson('/api/login', ['email' => 'victim@example.com', 'password' => 'wrong']);
+        }
+
+        // Перебиравшему дальше нельзя
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.1'])
+            ->postJson('/api/login', ['email' => 'victim@example.com', 'password' => 'wrong'])
+            ->assertStatus(429);
+
+        // А владельцу почты с другого адреса вход по-прежнему открыт
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.2'])
+            ->postJson('/api/login', ['email' => 'victim@example.com', 'password' => 'secret123'])
+            ->assertOk()
+            ->assertJsonStructure(['user' => ['id'], 'token']);
     }
 
     /** После выхода токен удаляется из базы и больше никого не пустит. */

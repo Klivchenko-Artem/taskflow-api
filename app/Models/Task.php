@@ -57,13 +57,13 @@ class Task extends Model
      */
     public function scopeFilter(Builder $query, array $filters): Builder
     {
+        // Везде filled, а не truthy-проверка: значение "0" это тоже фильтр,
+        // а when() счёл бы его пустым и отдал бы весь список
         return $query
-            ->when($filters['status'] ?? null, fn (Builder $q, $status) => $q->where('status', $status))
-            ->when($filters['priority'] ?? null, fn (Builder $q, $priority) => $q->where('priority', $priority))
-            ->when($filters['assignee_id'] ?? null, fn (Builder $q, $id) => $q->where('assignee_id', $id))
-            ->when($filters['due_before'] ?? null, fn (Builder $q, $date) => $q->whereDate('due_date', '<=', $date))
-            // Не truthy-проверка: поиск "0" это поиск, а when счёл бы его пустым
-            // и отдал все задачи
-            ->when((string) ($filters['search'] ?? '') !== '', fn (Builder $q) => Like::contains($q, 'title', (string) $filters['search']));
+            ->when(filled($filters['status'] ?? null), fn (Builder $q) => $q->where('status', $filters['status']))
+            ->when(filled($filters['priority'] ?? null), fn (Builder $q) => $q->where('priority', $filters['priority']))
+            ->when(filled($filters['assignee_id'] ?? null), fn (Builder $q) => $q->where('assignee_id', $filters['assignee_id']))
+            ->when(filled($filters['due_before'] ?? null), fn (Builder $q) => $q->whereDate('due_date', '<=', $filters['due_before']))
+            ->when(filled($filters['search'] ?? null), fn (Builder $q) => Like::contains($q, 'title', (string) $filters['search']));
     }
 }

@@ -16,27 +16,50 @@ return new class extends Migration
 
     public function up(): void
     {
-        // Два аккаунта, которые отличаются только регистром, слить сами не можем:
-        // у каждого свои проекты и задачи. Пусть решает человек, а не миграция
-        $clashes = DB::table('users')
-            ->selectRaw('lower(trim(email)) as normalized, count(*) as total')
-            ->groupByRaw('lower(trim(email))')
-            ->havingRaw('count(*) > 1')
-            ->pluck('normalized');
+        // Приводим в PHP, а не в SQL: lower() базы не трогает не-ASCII
+        // (SQLite всегда, PostgreSQL с локалью C), и почта с кириллицей
+        // или умляутом осталась бы в прежнем регистре, а индекс ниже
+        // перестал бы пускать её владельца
+        $users = DB::table('users')->select('id', 'email')->orderBy('id')->get();
 
-        if ($clashes->isNotEmpty()) {
+        $byEmail = [];
+        $clashes = [];
+
+        foreach ($users as $user) {
+            $normalized = mb_strtolower(trim((string) $user->email));
+
+            if (isset($byEmail[$normalized])) {
+                $clashes[] = $byEmail[$normalized]->id;
+                $clashes[] = $user->id;
+
+                continue;
+            }
+
+            $byEmail[$normalized] = $user;
+        }
+
+        // Два аккаунта, которые отличаются только регистром, слить сами не можем:
+        // у каждого свои проекты и задачи. Пусть решает человек, а не миграция.
+        // В тексте только id: исключение уедет в журнал, а почты там не нужны
+        if ($clashes !== []) {
             throw new RuntimeException(
-                'Есть аккаунты с одной почтой в разном регистре, объедините их вручную: '
-                .$clashes->join(', ')
+                'Есть аккаунты с одной почтой в разном регистре, объедините их вручную. id: '
+                .implode(', ', array_unique($clashes))
             );
         }
 
-        DB::table('users')->update(['email' => DB::raw('lower(trim(email))')]);
+        foreach ($byEmail as $normalized => $user) {
+            if ((string) $user->email !== $normalized) {
+                DB::table('users')->where('id', $user->id)->update(['email' => $normalized]);
+            }
+        }
 
         // Индекс по lower(email) держит уникальность и для записей, которые
-        // попадут в базу в обход модели
+        // попадут в базу в обход модели. В MariaDB функциональных индексов нет,
+        // там уникальность остаётся на модели
         match (DB::getDriverName()) {
-            'mysql', 'mariadb' => DB::statement('CREATE UNIQUE INDEX '.self::INDEX.' ON users ((lower(email)))'),
+            'mysql' => DB::statement('CREATE UNIQUE INDEX '.self::INDEX.' ON users ((lower(email)))'),
+            'mariadb' => null,
             default => DB::statement('CREATE UNIQUE INDEX '.self::INDEX.' ON users (lower(email))'),
         };
     }
@@ -44,7 +67,8 @@ return new class extends Migration
     public function down(): void
     {
         match (DB::getDriverName()) {
-            'mysql', 'mariadb' => DB::statement('DROP INDEX '.self::INDEX.' ON users'),
+            'mysql' => DB::statement('DROP INDEX '.self::INDEX.' ON users'),
+            'mariadb' => null,
             default => DB::statement('DROP INDEX '.self::INDEX),
         };
     }
